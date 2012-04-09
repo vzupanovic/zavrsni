@@ -83,7 +83,9 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 	uint64_t i,j;
 	N_rate = m_rate * total;
 	for (iterator=0; iterator<N_rate;iterator++){
-		ran_normal();
+		double ran;
+		int d, pos;
+		ran = ran_normal();
 	}
 	fp = gzopen(argv, "r");
 	fp_outm = fopen("output_mut1.fa","w");
