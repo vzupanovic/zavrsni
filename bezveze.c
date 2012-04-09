@@ -72,51 +72,51 @@ char swap_base(char base){ //uniform distribution
 	else return 'C';
 } 
 
-void generate_mutations(char *argv){ //nesto isprobavam
+void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali parametara
 	mutseq_t *ret[2];
+	FILE *fp_outm;
 	gzFile fp,fpc;
-	uint64_t total_len, iterator;
+	uint64_t total_len, iterator, N_rate;
 	uint8_t *tmp_seq[2];
 	kseq_t *seq, *copy;
 	int l,n_ref;
 	uint64_t i,j;
+	N_rate = m_rate * total;
+	for (iterator=0; iterator<N_rate;iterator++){
+		ran_normal();
+	}
 	fp = gzopen(argv, "r");
-	//fpc = gzopen("proba.fa","w");
+	fp_outm = fopen("output_mut1.fa","w");
+	if (!fp_outm){
+		fprintf(stderr,"[%s] file open error\n",__func__);
+	}
 	seq = kseq_init(fp);
-	//copy = kseq_init(fpc);
-	//copy = (char*)calloc(tot_len+1, 1);
-	//tmp_seq[0] = (uint8_t*)calloc(tot_len+2, 1);
-	//tmp_seq[1] = (uint8_t*)calloc(tot_len+2, 1);
 	while ((l = kseq_read(seq)) >= 0){
-		printf("bla\n");
 		total_len+=l;
 		++n_ref;
-		//if (seq->seq.s[i] == 'T') printf("T\n");
-		
+		fprintf(fp_outm,"%s",seq->seq.s);
 		iter = seq->seq.s;
-		//printf("seq: %c %c \n", *iter, *(iter+1));
 	}
-	printf("tu ide: \n");
-    for (iterator=0; iterator < total_len; iterator++)
-    printf("%c",*(iter+iterator));
-    kseq_destroy(seq);
-	//kseq_destroy(copy);
-	gzclose(fp);
-	//gzclose(fpc);
+	fclose(fp_outm);
+	kseq_destroy(seq); 
+	gzclose(fp); 
+	
 	
 }
 
 	
-void core(char *argv){
+void core(char *argv, char *m_ratec){
 	mutseq_t *ret[2];
 	gzFile fp;
 	uint64_t total_len;
 	kseq_t *seq;
 	int l,n_ref;
 	uint64_t i,j;
+	float mut_rate;
 	fp = gzopen(argv, "r");
 	seq = kseq_init(fp);
 	total_len = n_ref = 0;
+	mut_rate = atof(m_ratec);
 	frequency_A=frequency_T=frequency_G=frequency_C=0.;
 	nA=nT=nG=nC=j=0;
 	fprintf(stderr, "[%s] calculating the total length of the sequnce...\n",__func__);
@@ -125,9 +125,7 @@ void core(char *argv){
 		if(seq->comment.l) printf("[%s] comment: %s\n",__func__,seq->comment.s);
 		total_len+=l;
 		++n_ref;
-		//if (seq->seq.s[i] == "N") printf("N\n");
 		iter = seq->seq.s;
-		//printf("seq: %c %c \n", *iter, *(iter+1));
 		if (seq->qual.l) printf ("qual: %s\n",seq->qual.s);
 	}
 	fprintf(stderr, "[%s] %d sequences, total length: %llu\n", __func__, n_ref, (long long)total_len);
@@ -160,21 +158,25 @@ void core(char *argv){
    
     kseq_destroy(seq);
 	gzclose(fp);
-	
+	generate_mutations(argv,mut_rate,total_len);
 }
 
 int main(int argc, char *argv[])
 {
+	int dist, std_dev, size_l, size_r;
+	int64_t N;
+	FILE *fout1, *fout2;
 	clock_t start = clock();
+	N = 1000000; dist = 500; std_dev = 50; size_l = size_r = 70;
 	if (argc == 1){
 		fprintf(stderr, "Usage: %s <in.seq>\n", argv[0]);
 		printf("[%s] return value: %d FAIL\n",__func__, 1);
 		return 1;
 	}
-	core(argv[1]);
+	core(argv[1],argv[2]);
     printf("[%s] return value: %d OK\n",__func__, 0);
 	printf ( "[%s] Total time taken: %f sec\n",__func__, ( (double)clock() - start ) / CLOCKS_PER_SEC );
-	swap_base('A');
-	generate_mutations(argv[1]);
+	
+	
 	return 0;
 }
