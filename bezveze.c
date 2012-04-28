@@ -1,3 +1,6 @@
+//Prevoditi s: gcc -lz -lm -std=gnu99 bezveze.c
+//Pokretati s npr. : ./a.out Mus_musculus.NCBIM37.61.dna_rm.chromosome.1.fa 30
+
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
@@ -72,11 +75,32 @@ char swap_base(char base){ //uniform distribution
 	else return 'C';
 } 
 
+int generate_mut_index(uint64_t tot_len){
+	uint64_t mut_index;
+	double drand48();
+	double r;
+	srand48(time(NULL));
+	r = drand48();
+	mut_index = (long long)(trunc(r * tot_len));
+	return mut_index;
+}
+
+uint64_t *get_mut_index_array(uint64_t tot_len, double N_rate){
+	uint64_t i;
+	uint64_t *array_index;
+	array_index = (uint64_t *)malloc(tot_len * sizeof(uint64_t));
+	for (i=0;i<N_rate;i++){
+		*(array_index + i) = generate_mut_index(tot_len);
+	}
+	return array_index;
+}
+		
+	
 void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali parametara
 	mutseq_t *ret[2];
 	FILE *fp_outm;
 	gzFile fp,fpc;
-	uint64_t total_len, iterator, N_rate;
+	uint64_t total_len, iterator, N_rate, *array_index;
 	uint8_t *tmp_seq[2];
 	kseq_t *seq, *copy;
 	int l,n_ref;
@@ -88,15 +112,18 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 		ran = ran_normal();
 	}
 	fp = gzopen(argv, "r");
-	fp_outm = fopen("output_mut1.fa","w");
+	fp_outm = fopen("output_mut1.fa","wb");
 	if (!fp_outm){
 		fprintf(stderr,"[%s] file open error\n",__func__);
 	}
 	seq = kseq_init(fp);
+	array_index = get_mut_index_array(total, N_rate);
 	while ((l = kseq_read(seq)) >= 0){
 		total_len+=l;
 		++n_ref;
 		fprintf(fp_outm,"%s",seq->seq.s);
+		//fputs(seq->seq.s,fp_outm);
+		//fwrite(seq->seq.s,1,sizeof(seq->seq.s),fp_outm);
 		iter = seq->seq.s;
 	}
 	fclose(fp_outm);
