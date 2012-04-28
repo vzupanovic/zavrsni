@@ -1,0 +1,5 @@
+56MB -> 67 sekundi
+72MB -> 88 sekundi
+36MB -> 44 sekunde
+127MB -> 154.52 sekunde 
+//linearna zavisnost
