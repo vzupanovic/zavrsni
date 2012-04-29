@@ -64,10 +64,10 @@ double ran_normal() //normal distribution copied from generan.c
 }
 
 
-char swap_base(char base){ //uniform distribution
+char swap_base(char base,uint64_t i){ //uniform distribution
 	char new_base;
 	double value;
-	srand(time(NULL));
+	srand(i);
 	value = rand()/(RAND_MAX+1.0)*(MAX-MIN)+MIN;
 	if ((value >=0 ) && (value < 1 )) return 'A';
 	else if ((value >=1 ) && (value < 2 )) return 'T';
@@ -75,13 +75,14 @@ char swap_base(char base){ //uniform distribution
 	else return 'C';
 } 
 
-int generate_mut_index(uint64_t tot_len){
+int generate_mut_index(uint64_t tot_len,uint64_t i){
 	uint64_t mut_index;
 	double drand48();
 	double r;
-	srand48(time(NULL));
+	srand48(i);
 	r = drand48();
 	mut_index = (long long)(trunc(r * tot_len));
+	//printf("ovo je mut index %llu\n",(long long)mut_index);
 	return mut_index;
 }
 
@@ -90,21 +91,29 @@ uint64_t *get_mut_index_array(uint64_t tot_len, double N_rate){
 	uint64_t *array_index;
 	array_index = (uint64_t *)malloc(tot_len * sizeof(uint64_t));
 	for (i=0;i<N_rate;i++){
-		*(array_index + i) = generate_mut_index(tot_len);
+		*(array_index + i) = generate_mut_index(tot_len,i);
 	}
 	return array_index;
 }
-		
+	
+int check_index(uint64_t *array_of_int, double N_rate, uint64_t current_index){
+	uint64_t i;
+	for (i=0;i<N_rate;i++){
+		if (*(array_of_int) == current_index) return 1;
+	}
+	return 0;
+}	
 	
 void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali parametara
 	mutseq_t *ret[2];
-	FILE *fp_outm;
+	FILE *fp_outm,*proba;
 	gzFile fp,fpc;
 	uint64_t total_len, iterator, N_rate, *array_index;
 	uint8_t *tmp_seq[2];
 	kseq_t *seq, *copy;
 	int l,n_ref;
 	uint64_t i,j;
+	char *tot_seq;
 	N_rate = m_rate * total;
 	for (iterator=0; iterator<N_rate;iterator++){
 		double ran;
@@ -112,20 +121,26 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 		ran = ran_normal();
 	}
 	fp = gzopen(argv, "r");
-	fp_outm = fopen("output_mut1.fa","wb");
+	proba = fopen(argv,"r");
+	fp_outm = fopen("output_mut1.fa","w");
 	if (!fp_outm){
 		fprintf(stderr,"[%s] file open error\n",__func__);
 	}
 	seq = kseq_init(fp);
 	array_index = get_mut_index_array(total, N_rate);
+	tot_seq = (char *)malloc(total * sizeof(char)); n_ref = 0;total_len = 0;
 	while ((l = kseq_read(seq)) >= 0){
 		total_len+=l;
 		++n_ref;
-		fprintf(fp_outm,"%s",seq->seq.s);
-		//fputs(seq->seq.s,fp_outm);
-		//fwrite(seq->seq.s,1,sizeof(seq->seq.s),fp_outm);
+		//fprintf(fp_outm,"%s",seq->seq.s);
 		iter = seq->seq.s;
+		tot_seq = seq->seq.s;
 	}
+	//printf("%s\n",tot_seq);
+	for(i=0;i<N_rate;i++){
+		*(tot_seq + *(array_index+i)) = swap_base(*(tot_seq + *(array_index+i)),i);
+	}
+	//printf("%s\n",tot_seq);
 	fclose(fp_outm);
 	kseq_destroy(seq); 
 	gzclose(fp); 
@@ -187,7 +202,9 @@ void core(char *argv, char *m_ratec){
    
     kseq_destroy(seq);
 	gzclose(fp);
+	printf("[%s] transferring sequence into memory and generating mutations...\n",__func__);
 	generate_mutations(argv,mut_rate,total_len);
+	printf("[%s] done...\n",__func__);
 }
 
 int main(int argc, char *argv[])
