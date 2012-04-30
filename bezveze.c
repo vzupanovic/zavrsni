@@ -86,7 +86,7 @@ int generate_mut_index(uint64_t tot_len,uint64_t i){
 	return mut_index;
 }
 
-uint64_t *get_mut_index_array(uint64_t tot_len, double N_rate){
+uint64_t *get_mut_index_array(uint64_t tot_len, uint64_t N_rate){
 	uint64_t i;
 	uint64_t *array_index;
 	array_index = (uint64_t *)malloc(tot_len * sizeof(uint64_t));
@@ -96,13 +96,23 @@ uint64_t *get_mut_index_array(uint64_t tot_len, double N_rate){
 	return array_index;
 }
 	
-int check_index(uint64_t *array_of_int, double N_rate, uint64_t current_index){
+int check_index(uint64_t *array_of_int, uint64_t N_rate, uint64_t current_index){
 	uint64_t i;
 	for (i=0;i<N_rate;i++){
 		if (*(array_of_int) == current_index) return 1;
 	}
 	return 0;
 }	
+
+char simulate_BCER(char base, uint64_t i){
+	double drand48();
+	double r;
+	srand48(i);
+	r = drand48();
+	if (r <= ERR_RATE) base=swap_base(base,i);
+	//printf("%c\n",base);
+	return base;
+}
 	
 void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali parametara
 	mutseq_t *ret[2];
@@ -133,21 +143,21 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 		total_len+=l;
 		++n_ref;
 		//fprintf(fp_outm,"%s",seq->seq.s);
-		iter = seq->seq.s;
+		//iter = seq->seq.s;
 		tot_seq = seq->seq.s;
 	}
-	//printf("%s\n",tot_seq);
 	for(i=0;i<N_rate;i++){
 		*(tot_seq + *(array_index+i)) = swap_base(*(tot_seq + *(array_index+i)),i);
 	}
-	//printf("%s\n",tot_seq);
+	for(i=0;i<total;i++){
+		*(tot_seq + i) = simulate_BCER(*(tot_seq+i),i);
+		
+	}
 	fclose(fp_outm);
 	kseq_destroy(seq); 
 	gzclose(fp); 
-	
-	
+	printf("[core] done...\n[core] simulating BCER...\n");
 }
-
 	
 void core(char *argv, char *m_ratec){
 	mutseq_t *ret[2];
@@ -207,6 +217,16 @@ void core(char *argv, char *m_ratec){
 	printf("[%s] done...\n",__func__);
 }
 
+static int simu_usage(){
+	fprintf(stderr,"**********************************************************\n");
+	fprintf(stderr,"\nUsage: ./a.out <in.seq> <param1> <param2>\n");
+	fprintf(stderr,"<in.seq> = <input sequence> /example: seq1.tar.gz\n");
+	fprintf(stderr,"<param1> = <MUT_RATE> /example: 0.6/\n");
+	fprintf(stderr,"<param2> = <ERR_RATE> /default: 0.02/\n");
+	fprintf(stderr,"\n**********************************************************\n");
+	return 1;
+}
+
 int main(int argc, char *argv[])
 {
 	int dist, std_dev, size_l, size_r;
@@ -214,9 +234,9 @@ int main(int argc, char *argv[])
 	FILE *fout1, *fout2;
 	clock_t start = clock();
 	N = 1000000; dist = 500; std_dev = 50; size_l = size_r = 70;
-	if (argc == 1){
-		fprintf(stderr, "Usage: %s <in.seq>\n", argv[0]);
-		printf("[%s] return value: %d FAIL\n",__func__, 1);
+	if (argc < 2){
+		simu_usage();
+		printf("[%s] return value: %d FAIL , wrong input format.\n",__func__, 1);
 		return 1;
 	}
 	core(argv[1],argv[2]);
