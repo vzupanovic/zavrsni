@@ -63,6 +63,25 @@ double ran_normal() //normal distribution copied from generan.c
     }
 }
 
+const int poisson_random_number(const double lambda, uint64_t seed_gen) //poisson distribution - indel length - lambda: average len.
+{
+    int k=0;                         
+    const int max_k = 1000;           
+    double P = exp(-lambda);          
+    double sum=P;
+    double drand48(); 
+    double p;
+    srand48(seed_gen);
+    p = drand48();                    
+    if (sum>=p) return 0;             
+        for (k=1; k<max_k; ++k) {         
+             P*=lambda/(double)k;            
+             sum+=P;                         
+             if (sum>=p) break;             
+    }
+
+    return k;                       
+}
 
 char swap_base(char base,uint64_t i){ //uniform distribution
 	char new_base;
@@ -125,11 +144,6 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 	uint64_t i,j;
 	char *tot_seq;
 	N_rate = m_rate * total;
-	for (iterator=0; iterator<N_rate;iterator++){
-		double ran;
-		int d, pos;
-		ran = ran_normal();
-	}
 	fp = gzopen(argv, "r");
 	proba = fopen(argv,"r");
 	fp_outm = fopen("output_mut1.fa","w");
