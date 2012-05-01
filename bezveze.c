@@ -191,21 +191,24 @@ void generate_gaps(uint64_t gap_pos, int gap_size){
 void get_gaps(char *g_ratec,float a_len, uint64_t total){
 	float g_rate;
 	int g_size;
-	uint64_t tot_gaps, gap_pos,i;
+	uint64_t tot_gaps, gap_pos,i,j;
 	double drand48();
 	double r;
 	g_rate = atof(g_ratec);
 	tot_gaps = g_rate * total;
+	//printf("%llu\n",(long long)tot_gaps);
 	//generate_gaps(1,11);
 	for (i=0;i<tot_gaps;i++){
 		srand48(i);
 		r = drand48();
 		g_size = poisson_random_number(a_len,i);
 		gap_pos = (long long)(trunc(r * (total-g_size)));
-		generate_gaps(gap_pos,3);
-		total-=g_size;
+		//printf("%d %llu\n",g_size, (long long)gap_pos);
+		for (j=gap_pos;j<((gap_pos + g_size)<total?(gap_pos+g_size):total);j++){
+			*(tot_seq+j)='_';
 	}
 }	
+}
 void core(char *argv, double mut_rate){
 	mutseq_t *ret[2];
 	gzFile fp;
@@ -262,7 +265,7 @@ void core(char *argv, double mut_rate){
 	//printf("ovo:\n%s\n",tot_seq);
 	printf("[%s] done...\n",__func__);
 	printf("[%s] generating gaps...\n",__func__);
-	//get_gaps("0.005",3,total_len);
+	get_gaps("0.05",3,total_len);
 	printf("[%s] done...\n",__func__);
 	//printf("ovo:\n%s\n",tot_seq);
 }
