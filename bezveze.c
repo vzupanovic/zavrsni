@@ -19,6 +19,7 @@ KSEQ_INIT(gzFile, gzread);
 
 static double ERR_RATE = 0.02;
 static double MUT_RATE = 0.001;
+static double INDEL_FRAC = 0.15;
 
 typedef unsigned short mut_t;
 
@@ -28,6 +29,8 @@ typedef struct{
 } mutseq_t;
 
 char *iter;
+char *tot_seq;
+gzFile fp,fpc;
 
  static double_t frequency_A;
  static double_t frequency_T;
@@ -136,13 +139,13 @@ char simulate_BCER(char base, uint64_t i){
 void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali parametara
 	mutseq_t *ret[2];
 	FILE *fp_outm,*proba;
-	gzFile fp,fpc;
+	//gzFile fp,fpc;
 	uint64_t total_len, iterator, N_rate, *array_index;
 	uint8_t *tmp_seq[2];
 	kseq_t *seq, *copy;
 	int l,n_ref;
 	uint64_t i,j;
-	char *tot_seq;
+	//char *tot_seq;
 	N_rate = m_rate * total;
 	fp = gzopen(argv, "r");
 	proba = fopen(argv,"r");
@@ -152,7 +155,8 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 	}
 	seq = kseq_init(fp);
 	array_index = get_mut_index_array(total, N_rate);
-	tot_seq = (char *)malloc(total * sizeof(char)); n_ref = 0;total_len = 0;
+	tot_seq = (char *)malloc((total+1)* sizeof(char)); n_ref = 0;total_len = 0;
+	tot_seq[total]='\0';
 	while ((l = kseq_read(seq)) >= 0){
 		total_len+=l;
 		++n_ref;
@@ -160,6 +164,7 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 		//iter = seq->seq.s;
 		tot_seq = seq->seq.s;
 	}
+	//printf("normalna %s\n",tot_seq);
 	for(i=0;i<N_rate;i++){
 		*(tot_seq + *(array_index+i)) = swap_base(*(tot_seq + *(array_index+i)),i);
 	}
@@ -167,12 +172,40 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 		*(tot_seq + i) = simulate_BCER(*(tot_seq+i),i);
 		
 	}
+	//printf("normalna %s\n",tot_seq);
 	fclose(fp_outm);
-	kseq_destroy(seq); 
+	//kseq_destroy(seq); 
 	gzclose(fp); 
 	printf("[core] done...\n[core] simulating BCER...\n");
 }
-	
+
+void generate_gaps(uint64_t gap_pos, int gap_size){
+	uint64_t i;
+	tot_seq[gap_pos+1]='\0';
+	strcat(tot_seq,(tot_seq + gap_pos + gap_size));
+	printf("%d %llu %llu\n",gap_size, (long long)gap_pos,(long long)strlen(tot_seq));
+	printf("%s\n",tot_seq);
+}
+
+void get_gaps(char *g_ratec,float a_len, uint64_t total){
+	float g_rate;
+	int g_size;
+	uint64_t tot_gaps, gap_pos,i;
+	double drand48();
+	double r;
+	g_rate = atof(g_ratec);
+	tot_gaps = g_rate * total;
+	generate_gaps(1,11);
+	for (i=0;i<tot_gaps;i++){
+		//generate_gaps(1,11);
+		srand48(i);
+		r = drand48();
+		g_size = poisson_random_number(a_len,i);
+		gap_pos = (long long)(trunc(r * (total-g_size)));
+		generate_gaps(gap_pos,g_size);
+		total-=g_size;
+	}
+}	
 void core(char *argv, char *m_ratec){
 	mutseq_t *ret[2];
 	gzFile fp;
@@ -193,7 +226,7 @@ void core(char *argv, char *m_ratec){
 		if(seq->comment.l) printf("[%s] comment: %s\n",__func__,seq->comment.s);
 		total_len+=l;
 		++n_ref;
-		iter = seq->seq.s;
+		//iter = seq->seq.s;
 		if (seq->qual.l) printf ("qual: %s\n",seq->qual.s);
 	}
 	fprintf(stderr, "[%s] %d sequences, total length: %llu\n", __func__, n_ref, (long long)total_len);
@@ -228,7 +261,12 @@ void core(char *argv, char *m_ratec){
 	gzclose(fp);
 	printf("[%s] transferring sequence into memory and generating mutations...\n",__func__);
 	generate_mutations(argv,mut_rate,total_len);
+	//printf("ovo:\n%s\n",tot_seq);
 	printf("[%s] done...\n",__func__);
+	printf("[%s] generating gaps...\n",__func__);
+	//get_gaps("0.15",3,total_len);
+	printf("[%s] done...\n",__func__);
+	//printf("ovo:\n%s\n",tot_seq);
 }
 
 static int simu_usage(){
