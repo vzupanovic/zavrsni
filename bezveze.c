@@ -21,6 +21,7 @@ KSEQ_INIT(gzFile, gzread);
 static double ERR_RATE = 0.02;
 static double MUT_RATE = 0.001;
 static double INDEL_FRAC = 0.15;
+static double SEED = -1;
 
 typedef unsigned short mut_t;
 
@@ -279,6 +280,7 @@ static int simu_usage(){
 	fprintf(stderr,"         -2 INT length of second read (default 70bp)\n");
 	fprintf(stderr,"         -N INT number of read pairs (default 100000)\n");
 	fprintf(stderr,"         -R FLOAT fraction of indels\n");
+	fprintf(stderr,"         -S INT seed for random generator (default -1)\n");
 	fprintf(stderr,"\n**********************************************************\n");
 	return 1;
 }
@@ -290,7 +292,7 @@ int main(int argc, char *argv[])
 	FILE *fout1, *fout2;
 	clock_t start = clock();
 	N = 1000000; dist = 500; std_dev = 50; size_l = size_r = 70;
-	while ((c = getopt(argc, argv, "e:N:1:2:r:R")) >= 0) {
+	while ((c = getopt(argc, argv, "e:N:1:2:r:R:S")) >= 0) {
 		switch (c) {
 		case 'N': N = atoi(optarg); break; //broj pair end readova
 		case '1': size_l = atoi(optarg); break;//length of first read
@@ -298,6 +300,7 @@ int main(int argc, char *argv[])
 		case 'e': ERR_RATE = atof(optarg); break; //bcer
 		case 'r': MUT_RATE = atof(optarg); break; //rate of mutations
 		case 'R': INDEL_FRAC = atof(optarg); break;//del.
+		case 'S': SEED = atoi(optarg);break;//seed for random number gen.
 		}
 	}
 	if(argc - optind < 3) return simu_usage();
@@ -307,6 +310,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "[%s] file open error\n",__func__);
 		return 1;
 	}
+	if (SEED <= 0) SEED = time(0)&0x7fffffff;
 	core(argv[optind],MUT_RATE);
     printf("[%s] return value: %d OK\n",__func__, 0);
 	printf ( "[%s] Total time taken: %f sec\n",__func__, ( (double)clock() - start ) / CLOCKS_PER_SEC );
