@@ -11,6 +11,7 @@
 #include <math.h>
 #include <zlib.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #define MAX 4
 #define MIN 0
@@ -183,8 +184,8 @@ void generate_gaps(uint64_t gap_pos, int gap_size){
 	uint64_t i;
 	tot_seq[gap_pos+1]='\0';
 	strcat(tot_seq,(tot_seq + gap_pos + gap_size));
-	printf("%d %llu %llu\n",gap_size, (long long)gap_pos,(long long)strlen(tot_seq));
-	printf("%s\n",tot_seq);
+	//printf("%d %llu %llu\n",gap_size, (long long)gap_pos,(long long)strlen(tot_seq));
+	//printf("%s\n",tot_seq);
 }
 
 void get_gaps(char *g_ratec,float a_len, uint64_t total){
@@ -195,29 +196,26 @@ void get_gaps(char *g_ratec,float a_len, uint64_t total){
 	double r;
 	g_rate = atof(g_ratec);
 	tot_gaps = g_rate * total;
-	generate_gaps(1,11);
+	//generate_gaps(1,11);
 	for (i=0;i<tot_gaps;i++){
-		//generate_gaps(1,11);
 		srand48(i);
 		r = drand48();
 		g_size = poisson_random_number(a_len,i);
 		gap_pos = (long long)(trunc(r * (total-g_size)));
-		generate_gaps(gap_pos,g_size);
+		generate_gaps(gap_pos,3);
 		total-=g_size;
 	}
 }	
-void core(char *argv, char *m_ratec){
+void core(char *argv, double mut_rate){
 	mutseq_t *ret[2];
 	gzFile fp;
 	uint64_t total_len;
 	kseq_t *seq;
 	int l,n_ref;
 	uint64_t i,j;
-	float mut_rate;
 	fp = gzopen(argv, "r");
 	seq = kseq_init(fp);
 	total_len = n_ref = 0;
-	mut_rate = atof(m_ratec);
 	frequency_A=frequency_T=frequency_G=frequency_C=0.;
 	nA=nT=nG=nC=j=0;
 	fprintf(stderr, "[%s] calculating the total length of the sequnce...\n",__func__);
@@ -264,37 +262,52 @@ void core(char *argv, char *m_ratec){
 	//printf("ovo:\n%s\n",tot_seq);
 	printf("[%s] done...\n",__func__);
 	printf("[%s] generating gaps...\n",__func__);
-	//get_gaps("0.15",3,total_len);
+	//get_gaps("0.005",3,total_len);
 	printf("[%s] done...\n",__func__);
 	//printf("ovo:\n%s\n",tot_seq);
 }
 
 static int simu_usage(){
 	fprintf(stderr,"**********************************************************\n");
-	fprintf(stderr,"\nUsage: ./a.out <in.seq> <param1> <param2>\n");
-	fprintf(stderr,"<in.seq> = <input sequence> /example: seq1.tar.gz\n");
-	fprintf(stderr,"<param1> = <MUT_RATE> /example: 0.6/\n");
-	fprintf(stderr,"<param2> = <ERR_RATE> /default: 0.02/\n");
+	fprintf(stderr,"\nUsage: ./a.out [options] <in_seq.fa> <out_read1.fq> <out_read2.fq>\n\n");
+	fprintf(stderr,"Options: -r FLOAT rate of mutations\n");
+	fprintf(stderr,"         -e FLOAT base error rate (default 0.02)\n");
+	fprintf(stderr,"         -1 INT length of first read (default 70bp)\n");
+	fprintf(stderr,"         -2 INT length of second read (default 70bp)\n");
+	fprintf(stderr,"         -N INT number of read pairs (default 100000)\n");
+	fprintf(stderr,"         -R FLOAT fraction of indels\n");
 	fprintf(stderr,"\n**********************************************************\n");
 	return 1;
 }
 
 int main(int argc, char *argv[])
 {
-	int dist, std_dev, size_l, size_r;
+	int dist, std_dev, size_l, size_r,c;
 	int64_t N;
 	FILE *fout1, *fout2;
 	clock_t start = clock();
 	N = 1000000; dist = 500; std_dev = 50; size_l = size_r = 70;
-	if (argc < 2){
-		simu_usage();
-		printf("[%s] return value: %d FAIL , wrong input format.\n",__func__, 1);
+	while ((c = getopt(argc, argv, "e:N:1:2:r:R")) >= 0) {
+		switch (c) {
+		case 'N': N = atoi(optarg); break; //broj pair end readova
+		case '1': size_l = atoi(optarg); break;//length of first read
+		case '2': size_r = atoi(optarg); break; //length of second read
+		case 'e': ERR_RATE = atof(optarg); break; //bcer
+		case 'r': MUT_RATE = atof(optarg); break; //rate of mutations
+		case 'R': INDEL_FRAC = atof(optarg); break;//del.
+		}
+	}
+	if(argc - optind < 3) return simu_usage();
+	fout1 = fopen(argv[optind+1], "w");
+	fout2 = fopen(argv[optind+2], "w");
+	if (!fout1 || !fout2) {
+		fprintf(stderr, "[%s] file open error\n",__func__);
 		return 1;
 	}
-	core(argv[1],argv[2]);
+	core(argv[optind],MUT_RATE);
     printf("[%s] return value: %d OK\n",__func__, 0);
 	printf ( "[%s] Total time taken: %f sec\n",__func__, ( (double)clock() - start ) / CLOCKS_PER_SEC );
 	
-	
+	fclose(fout1); fclose(fout2);
 	return 0;
 }
