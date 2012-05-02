@@ -266,9 +266,9 @@ void core(char *argv, double mut_rate){
 	//printf("ovo:\n%s\n",tot_seq);
 	printf("[%s] done...\n",__func__);
 	printf("[%s] generating gaps...\n",__func__);
-	//get_gaps("0.05",3,total_len);
+	get_gaps("0.05",3,total_len);
 	printf("[%s] done...\n",__func__);
-	printf("ovo:\n%s\n",tot_seq);
+	//printf("ovo:\n%s\n",tot_seq);
 }
 
 static int simu_usage(){
