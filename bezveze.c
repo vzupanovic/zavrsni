@@ -21,7 +21,7 @@ KSEQ_INIT(gzFile, gzread);
 static double ERR_RATE = 0.02;
 static double MUT_RATE = 0.001;
 static double INDEL_FRAC = 0.15;
-static double SEED = -1;
+static int SEED = -1;
 
 typedef unsigned short mut_t;
 
@@ -76,7 +76,7 @@ const int poisson_random_number(const double lambda, uint64_t seed_gen) //poisso
     double sum=P;
     double drand48(); 
     double p;
-    srand48(seed_gen);
+    srand48(seed_gen+SEED);
     p = drand48();                    
     if (sum>=p) return 0;             
         for (k=1; k<max_k; ++k) {         
@@ -91,7 +91,7 @@ const int poisson_random_number(const double lambda, uint64_t seed_gen) //poisso
 char swap_base(char base,uint64_t i){ //uniform distribution
 	char new_base;
 	double value;
-	srand(i);
+	srand(i+SEED);
 	value = rand()/(RAND_MAX+1.0)*(MAX-MIN)+MIN;
 	if ((value >=0 ) && (value < 1 )) return 'A';
 	else if ((value >=1 ) && (value < 2 )) return 'T';
@@ -103,7 +103,7 @@ int generate_mut_index(uint64_t tot_len,uint64_t i){
 	uint64_t mut_index;
 	double drand48();
 	double r;
-	srand48(i);
+	srand48(i+SEED);
 	r = drand48();
 	mut_index = (long long)(trunc(r * tot_len));
 	//printf("ovo je mut index %llu\n",(long long)mut_index);
@@ -131,7 +131,7 @@ int check_index(uint64_t *array_of_int, uint64_t N_rate, uint64_t current_index)
 char simulate_BCER(char base, uint64_t i){
 	double drand48();
 	double r;
-	srand48(i);
+	srand48(i+SEED);
 	r = drand48();
 	if (r <= ERR_RATE) base=swap_base(base,i);
 	//printf("%c\n",base);
@@ -196,11 +196,11 @@ void get_gaps(char *g_ratec,float a_len, uint64_t total){
 	double drand48();
 	double r;
 	g_rate = atof(g_ratec);
-	tot_gaps = g_rate * total;
+	tot_gaps = INDEL_FRAC * total;
 	//printf("%llu\n",(long long)tot_gaps);
 	//generate_gaps(1,11);
 	for (i=0;i<tot_gaps;i++){
-		srand48(i);
+		srand48(SEED+i);
 		r = drand48();
 		g_size = poisson_random_number(a_len,i);
 		gap_pos = (long long)(trunc(r * (total-g_size)));
@@ -266,9 +266,9 @@ void core(char *argv, double mut_rate){
 	//printf("ovo:\n%s\n",tot_seq);
 	printf("[%s] done...\n",__func__);
 	printf("[%s] generating gaps...\n",__func__);
-	get_gaps("0.05",3,total_len);
+	//get_gaps("0.05",3,total_len);
 	printf("[%s] done...\n",__func__);
-	//printf("ovo:\n%s\n",tot_seq);
+	printf("ovo:\n%s\n",tot_seq);
 }
 
 static int simu_usage(){
@@ -292,7 +292,7 @@ int main(int argc, char *argv[])
 	FILE *fout1, *fout2;
 	clock_t start = clock();
 	N = 1000000; dist = 500; std_dev = 50; size_l = size_r = 70;
-	while ((c = getopt(argc, argv, "e:N:1:2:r:R:S")) >= 0) {
+	while ((c = getopt(argc, argv, "e:N:1:2:r:R:S:")) >= 0) {
 		switch (c) {
 		case 'N': N = atoi(optarg); break; //broj pair end readova
 		case '1': size_l = atoi(optarg); break;//length of first read
