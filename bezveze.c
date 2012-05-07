@@ -183,7 +183,7 @@ void generate_mutations(char *argv, float m_rate,uint64_t total){ //fali paramet
 
 void generate_gaps(uint64_t gap_pos, int gap_size){
 	uint64_t i;
-	tot_seq[gap_pos+1]='\0';
+	tot_seq[gap_pos]='\0';
 	strcat(tot_seq,(tot_seq + gap_pos + gap_size));
 	//printf("%d %llu %llu\n",gap_size, (long long)gap_pos,(long long)strlen(tot_seq));
 	//printf("%s\n",tot_seq);
