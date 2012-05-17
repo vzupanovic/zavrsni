@@ -114,14 +114,22 @@ char swap_base(char base){ //uniform distribution
 		     else return 'A';
 		     break;
 	    default:
-	         return -1; //ovo se ne bi smjelo desit
+	         return base; //ovo se ne bi smjelo desit
 	   }
 	
 } 
 
+char get_complement(char base){
+	if (base == 'A') return 'T';
+	else if (base == 'T') return 'A';
+	else if (base == 'G') return 'C';
+	else if (base == 'C') return 'G';
+	else return base;
+}
+
 int generate_mut_index(uint64_t tot_len,uint64_t i){
 	uint64_t mut_index;
-	double drand48();
+	double value;
 	double r;
 	srand48(i+SEED);
 	r = drand48();
@@ -148,14 +156,18 @@ int check_index(uint64_t *array_of_int, uint64_t N_rate, uint64_t current_index)
 	return 0;
 }	
 
-char simulate_BCER(char base, uint64_t i){
-	double drand48();
-	double r;
-	srand48(i+SEED);
-	r = drand48();
-	if (r <= ERR_RATE) base=swap_base(base);
-	//printf("%c\n",base);
-	return base;
+char *simulate_BCER(int read_length, char *read_local){
+	double value;
+	int i,index,n_errors;
+	n_errors=(int)(read_length*ERR_RATE);
+	srand(SEED);
+	for (i=0;i<n_errors;i++){
+		value = rand()/(RAND_MAX+1.0)*(read_length-1);
+		index = trunc((int)value);
+		*(read_local+index) = swap_base(*(read_local+index));
+    }
+    return read_local;
+	
 }
 
 void generate_mutations(int dist){ //fali parametara
@@ -204,9 +216,9 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 	gzFile fp;
 	uint64_t total_len;
 	kseq_t *seq;
-	int l,n_ref,max_size,Q;
+	int l,n_ref,max_size,Q,n_errors;
 	uint64_t i,j,counter_a,counter_b;
-	char *q_string;
+	char *q_string,*q2_string;
 	fp = gzopen(argv, "r");
 	seq = kseq_init(fp);
 	total_len = n_ref = 0;
@@ -215,7 +227,9 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 	max_size = size_l > size_r? size_l : size_r;
 	Q = (ERR_RATE == 0.0)? 'I' : (int)(-10.0 * log(ERR_RATE) / log(10.0) + 0.499) + 33;
 	q_string = (char *)malloc((size_l+1)*sizeof(char));
+	q2_string = (char *)malloc((size_r+1)*sizeof(char));
 	for(int k=0;k<size_l;k++){q_string[k]=Q;};
+	for(int k=0;k<size_r;k++){q2_string[k]=Q;};
 	srand48(SEED);
 	fprintf(stderr, "[%s] calculating the total length of the sequnce...\n",__func__);
 	while ((l = kseq_read(seq)) >= 0){
@@ -288,6 +302,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 			fprintf(stderr,"[%s] ERROR sequence to short for given parametars!\n",__func__);
 			return -1;
 		}
+		//printf("prije govana: %s\n",read_f);
 		do{
 			int type_indel;
 			char *fragment;
@@ -297,33 +312,44 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 			type_indel = 1;
 			if (type_indel == 1){pos = (int)trunc(rand()/(RAND_MAX+1.0)*(curr_dist-1));generate_gaps(pos,1);curr_dist--;}
 			/*else{
-				char fragment[4],keeper[2];
+				printf("ub\n");
+				char fragment[4];
 				double r;
-				char base,*temp;//pazi kad produzujes read koji je vec 500 ne valja sporo
-				temp = (char *)malloc(dist*sizeof(char));
+				char base;//pazi kad produzujes read koji je vec 500 ne valja sporo
 				r = rand()/(RAND_MAX+1.0);
 				base=(r < 0.25)?'A':((r>=0.25 && r<0.5)?'T':(r>=0.25 && r<0.75)?'C':'G');
 				fragment[0]=base;fragment[1]='\0';
 				pos = (int)trunc(rand()/(RAND_MAX+1.0)*dist);//insert(pos,fragment);
-				/*strcpy(temp,read_f+pos);
 				read_f[pos]='\0';
 				strcat(read_f,fragment);
-				strcat(read_f,temp);*/
-				/*keeper[0]=read_f[pos];
-				keeper[1]='\0';
-				read_f[pos]='\0';
-				strcat(fragment,keeper);
-				strcat(fragment,read_f+pos+1);
-				strcat(read_f,fragment);
-				}*/
+				strcat(read_f,(read_f + pos + gap_size));
+				strcpy(temp,read_f+pos);
+				
+			}*/
 			n_n++;
 		}while(n_n<n_indel);
+		//printf("lala read %s\n",read_f);
 		read1=(char *)malloc((size_l+1)*sizeof(char));
+		n_errors=(int)(INDEL_FRAC*size_l);
 		read2=(char *)malloc((size_r+1)*sizeof(char));
 		strncpy(read1,read_f,size_l);read1[size_l+1]='\0';
+		int internal_counter=0;
+		for(int k=strlen(read_f)-1;internal_counter<size_r;k--){
+			*(read2+internal_counter)=get_complement(*(read_f + k));
+			internal_counter++;
+		}
+		read2[internal_counter]='\0';
+		read1=simulate_BCER(size_l,read1);
+		read2=simulate_BCER(size_r,read2);
 		fprintf(fout1,"@%s_%llu_%llu_0:0:0_0:0:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(long long)counter_a,1);
 		fprintf(fout1,"%s\n+\n%s\n",read1,q_string);
+		fprintf(fout2,"@%s_%llu_%llu_0:0:0_0:0:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(long long)counter_a,1);
+		fprintf(fout2,"%s\n+\n%s\n",read2,q2_string);
+		//printf("read %s\n",read_f);
 		//printf("read 1 %s\n",read1);
+		//printf("read 2 %s\n",read2);
+		free(read1);
+		free(read2);
 		//printf("%s\n",read_f);
 		//printf("pozicija %d\n",pos);
 	}
