@@ -23,6 +23,7 @@ static double MUT_RATE = 0.001;
 static double INDEL_FRAC = 0.15;
 static int GAP_SIZE = 1;
 static int SEED = -1;
+static double INDEL_EXT = 0.3;
 
 typedef unsigned short mut_t;
 
@@ -32,7 +33,7 @@ typedef struct{
 } mutseq_t;
 
 char *tot_seq,*read_f,*iter;
-
+int n_sub[2],n_err[2];
 gzFile fp,fpc;
 
  static double_t frequency_A;
@@ -126,35 +127,6 @@ char get_complement(char base){
 	else return base;
 }
 
-int generate_mut_index(uint64_t tot_len,uint64_t i){
-	uint64_t mut_index;
-	double value;
-	double r;
-	//srand48(i+SEED);
-	r = drand48();
-	mut_index = (long long)(trunc(r * tot_len));
-	//printf("ovo je mut index %llu\n",(long long)mut_index);
-	return mut_index;
-}
-
-uint64_t *get_mut_index_array(uint64_t tot_len, uint64_t N_rate){
-	uint64_t i;
-	uint64_t *array_index;
-	array_index = (uint64_t *)malloc(tot_len * sizeof(uint64_t));
-	for (i=0;i<N_rate;i++){
-		*(array_index + i) = generate_mut_index(tot_len,i);
-	}
-	return array_index;
-}
-	
-int check_index(uint64_t *array_of_int, uint64_t N_rate, uint64_t current_index){
-	uint64_t i;
-	for (i=0;i<N_rate;i++){
-		if (*(array_of_int) == current_index) return 1;
-	}
-	return 0;
-}	
-
 char *simulate_BCER(int read_length, char *read_local){
 	double value;
 	int i,index,n_errors;
@@ -169,7 +141,7 @@ char *simulate_BCER(int read_length, char *read_local){
 	
 }
 
-void generate_mutations(int dist){ //fali parametara
+void generate_mutations(int dist, int size_l,int size_r){ //fali parametara
 	int i,pos,n_mut;
 	double r;
 	n_mut = dist * MUT_RATE;
@@ -177,6 +149,8 @@ void generate_mutations(int dist){ //fali parametara
 	for (i=0;i<n_mut;i++){
 		r=drand48();
 		pos = (int)(trunc(r * dist));
+		if(pos<=size_l){n_sub[0]++;}
+		if(pos>=(dist-size_r)){n_sub[1]++;}
 		if(*(read_f+pos)!='N')
 		    *(read_f+pos)=swap_base(*(read_f+pos));
 	}
@@ -188,28 +162,6 @@ void generate_gaps(int gap_pos, int gap_size){
 	strcat(read_f,(read_f + gap_pos + gap_size));
 }
 
-
-void get_gaps(char *g_ratec,float a_len, uint64_t total){
-	float g_rate;
-	int g_size;
-	uint64_t tot_gaps, gap_pos,i,j;
-	double drand48();
-	double r;
-	g_rate = atof(g_ratec);
-	tot_gaps = INDEL_FRAC * total;
-	//printf("%llu\n",(long long)tot_gaps);
-	//generate_gaps(1,11);
-	for (i=0;i<tot_gaps;i++){
-		//srand48(SEED+i);
-		r = drand48();
-		//g_size = poisson_random_number(a_len,i);
-		gap_pos = (long long)(trunc(r * (total-g_size)));
-		//printf("%d %llu\n",g_size, (long long)gap_pos);
-		for (j=gap_pos;j<((gap_pos + g_size)<total?(gap_pos+g_size):total);j++){
-			*(tot_seq+j)='_';
-	}
-}	
-}
 int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r, uint64_t N,int dist){
 	mutseq_t *ret[2];
 	gzFile fp;
@@ -281,6 +233,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		int d,pos;
 		uint64_t fp1_b,fp1_e,fp2_b,fp2_e,begin,end;
 		char *read1,*read2;
+		n_sub[0]=n_sub[1]=n_err[0]=n_err[1]=0;
 		do{
 			ran = ran_normal();
 			ran = ran * std_dev + dist;
@@ -295,7 +248,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		begin=pos; end=pos+d;
 		//printf("------------------------------------\n");
 		//printf("pocetak %llu kraj %llu duljina %d %s\n",(long long)begin,(long long)end,d,read_f);
-		generate_mutations(d);
+		generate_mutations(d,size_l,size_r);
 		int n_n=0;
 		int n_indel = (int)(INDEL_FRAC * d);
 		int curr_dist=d;
@@ -306,10 +259,10 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		}
 		//printf("prije: %s\n",read_f);
 		do{
-			int type_indel;
+			int type_indel,gap_size;
 			char *fragment;
-			type_indel = (rand()/(RAND_MAX+1.0)*2>=1)?1:0;
-			//type_indel = 1;
+			//type_indel = (rand()/(RAND_MAX+1.0)*2>=1)?1:0;
+			type_indel = (drand48()>=INDEL_EXT)?1:0;
 			if (type_indel == 1){pos = (int)trunc(rand()/(RAND_MAX+1.0)*(curr_dist-1));generate_gaps(pos,GAP_SIZE);curr_dist=curr_dist-GAP_SIZE;}
 			else{
 				//printf("ub\n");
@@ -345,9 +298,9 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		read2[internal_counter]='\0';
 		read1=simulate_BCER(size_l,read1);
 		read2=simulate_BCER(size_r,read2);
-		fprintf(fout1,"@%s_%llu_%llu_0:0:0_0:0:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(long long)counter_a,1);
+		fprintf(fout1,"@%s_%llu_%llu_%d:%d:0_%d:%d:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(int)(size_l*ERR_RATE),n_sub[0],(int)(size_r*ERR_RATE),n_sub[1],(long long)counter_a,1);
 		fprintf(fout1,"%s\n+\n%s\n",read1,q_string);
-		fprintf(fout2,"@%s_%llu_%llu_0:0:0_0:0:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(long long)counter_a,2);
+		fprintf(fout2,"@%s_%llu_%llu_%d:%d:0_%d:%d:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(int)(size_l*ERR_RATE),n_sub[0],(int)(size_r*ERR_RATE),n_sub[1],(long long)counter_a,2);
 		fprintf(fout2,"%s\n+\n%s\n",read2,q2_string);
 		//printf("read %s\n",read_f);
 		//printf("read 1 %s\n",read1);
@@ -359,14 +312,6 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 	}
     //kseq_destroy(seq);
 	gzclose(fp);
-	//printf("lalalalala %s\n",tot_seq);
-	//generate_mutations(argv,mut_rate,total_len);
-	//printf("ovo:\n%s\n",tot_seq);
-	//printf("[%s] done...\n",__func__);
-	//printf("[%s] generating gaps...\n",__func__);
-	//get_gaps("0.05",3,total_len);
-	//printf("[%s] done...\n",__func__);
-	//printf("ovo:\n%s\n",tot_seq);
 }
 
 static int simu_usage(){
@@ -382,6 +327,7 @@ static int simu_usage(){
 	fprintf(stderr,"         -d INT outer distance between the two ends [default 500]\n");
 	fprintf(stderr,"         -g INT average gap size [default 1]\n");
 	fprintf(stderr,"         -D INT standard deviation [default 50]\n");
+	fprintf(stderr,"         -X FLOAT probability that indel is extended [default 0.3]\n");
 	fprintf(stderr,"\n**********************************************************\n");
 	return 1;
 }
@@ -395,7 +341,7 @@ int main(int argc, char *argv[])
 	char flag[10];
 	N = 1000000; dist = 500; std_dev = 50; size_l = size_r = 70;
 	flag[0]='O';flag[1]='K';flag[2]='\0'; ind = 0;
-	while ((c = getopt(argc, argv, "e:N:1:2:r:R:S:d:g:D:")) >= 0) {
+	while ((c = getopt(argc, argv, "e:N:1:2:r:R:S:d:g:D:X:")) >= 0) {
 		switch (c) {
 		case 'N': N = atoi(optarg); break; //broj pair end readova
 		case '1': size_l = atoi(optarg); break;//length of first read
@@ -407,6 +353,7 @@ int main(int argc, char *argv[])
 		case 'd': dist=atoi(optarg);break;//distance between two reads
 		case 'g': GAP_SIZE=atoi(optarg);break;//average gap size
 		case 'D': std_dev=atoi(optarg);break;//standard deviation
+		case 'X': INDEL_EXT=atof(optarg);break;//probability that indel is extended
 		}
 	}
 	if(argc - optind < 3) return simu_usage();
