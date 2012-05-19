@@ -21,6 +21,7 @@ KSEQ_INIT(gzFile, gzread);
 static double ERR_RATE = 0.02;
 static double MUT_RATE = 0.001;
 static double INDEL_FRAC = 0.15;
+static int GAP_SIZE = 1;
 static int SEED = -1;
 
 typedef unsigned short mut_t;
@@ -68,25 +69,23 @@ double ran_normal() //normal distribution copied from generan.c
     }
 }
 
-const int poisson_random_number(const double lambda, uint64_t seed_gen) //poisson distribution - indel length - lambda: average len.
+const int PoissonRandomNumber(const double lambda)
 {
-    int k=0;                         
-    const int max_k = 1000;           
-    double P = exp(-lambda);          
-    double sum=P;
-    double drand48(); 
-    double p;
-    srand48(seed_gen+SEED);
-    p = drand48();                    
-    if (sum>=p) return 0;             
-        for (k=1; k<max_k; ++k) {         
-             P*=lambda/(double)k;            
-             sum+=P;                         
-             if (sum>=p) break;             
-    }
+  int k=0;                          //Counter
+  const int max_k = 1000;           //k upper limit
+  double p = ran_uniform(); //uniform random number
+  double P = exp(-lambda);          //probability
+  double sum=P;                     //cumulant
+  if (sum>=p) return 0;             //done allready
+  for (k=1; k<max_k; ++k) {         //Loop over all k:s
+    P*=lambda/(double)k;            //Calc next prob
+    sum+=P;                         //Increase cumulant
+    if (sum>=p) break;              //Leave loop
+  }
 
-    return k;                       
+  return k;                         //return random number
 }
+
 
 char swap_base(char base){ //uniform distribution
 	char new_base;
@@ -131,7 +130,7 @@ int generate_mut_index(uint64_t tot_len,uint64_t i){
 	uint64_t mut_index;
 	double value;
 	double r;
-	srand48(i+SEED);
+	//srand48(i+SEED);
 	r = drand48();
 	mut_index = (long long)(trunc(r * tot_len));
 	//printf("ovo je mut index %llu\n",(long long)mut_index);
@@ -174,7 +173,7 @@ void generate_mutations(int dist){ //fali parametara
 	int i,pos,n_mut;
 	double r;
 	n_mut = dist * MUT_RATE;
-	srand48(SEED);
+	//srand48(SEED);
 	for (i=0;i<n_mut;i++){
 		r=drand48();
 		pos = (int)(trunc(r * dist));
@@ -201,9 +200,9 @@ void get_gaps(char *g_ratec,float a_len, uint64_t total){
 	//printf("%llu\n",(long long)tot_gaps);
 	//generate_gaps(1,11);
 	for (i=0;i<tot_gaps;i++){
-		srand48(SEED+i);
+		//srand48(SEED+i);
 		r = drand48();
-		g_size = poisson_random_number(a_len,i);
+		//g_size = poisson_random_number(a_len,i);
 		gap_pos = (long long)(trunc(r * (total-g_size)));
 		//printf("%d %llu\n",g_size, (long long)gap_pos);
 		for (j=gap_pos;j<((gap_pos + g_size)<total?(gap_pos+g_size):total);j++){
@@ -230,7 +229,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 	q2_string = (char *)malloc((size_r+1)*sizeof(char));
 	for(int k=0;k<size_l;k++){q_string[k]=Q;};
 	for(int k=0;k<size_r;k++){q2_string[k]=Q;};
-	srand48(SEED);
+	//srand48(SEED);
 	fprintf(stderr, "[%s] calculating the total length of the sequnce...\n",__func__);
 	while ((l = kseq_read(seq)) >= 0){
 		printf("[%s] name: %s\n",__func__,seq->name.s);
@@ -274,8 +273,9 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
     }
     tot_seq = (char *)malloc((total_len+1)*sizeof(char));
 	tot_seq = seq->seq.s;
-	printf("[%s] transferring sequence into memory and generating mutations...\n",__func__);
+	printf("[%s] transferring sequence into memory and generating errors...\n",__func__);
 	counter_a=counter_b=0;
+	//printf("ovo je size_l Size_r d %d %d\n",size_l,size_r);
 	for(i=0;i<N;i++){
 		double ran;
 		int d,pos;
@@ -286,8 +286,8 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 			ran = ran * std_dev + dist;
 			d = (int)(ran + 0.5);
 			d = d > max_size ? d : max_size;
-			//pos = (int)((total_len-d+1)*drand48());//sporno uvijek read??? to ne smije!
-			pos=(int)(rand()/(RAND_MAX+1.0)*(total_len-d+1));//neka sad bude ovo...
+			pos = (int)((total_len-d+1)*drand48());//sporno uvijek read??? to ne smije!
+			//pos=(int)(rand()/(RAND_MAX+1.0)*(total_len-d+1));//neka sad bude ovo...
 		}while(pos < 0 || pos >= total_len || (pos + d - 1) >= total_len);
 		read_f = (char *)malloc((d+1+(int)((INDEL_FRAC+0.5)*d))*sizeof(char));counter_a++;//zajeb, nije valjalo dist -> d
 		read_f[d+1]='\0';
@@ -298,43 +298,47 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		generate_mutations(d);
 		int n_n=0;
 		int n_indel = (int)(INDEL_FRAC * d);
-		if(n_indel >= d){
+		int curr_dist=d;
+		//printf("ovo je d %d\n",curr_dist);
+		if((n_indel >= d) || ((GAP_SIZE*n_indel)>=d)){
 			fprintf(stderr,"[%s] ERROR sequence to short for given parametars!\n",__func__);
 			return -1;
 		}
-		//printf("prije govana: %s\n",read_f);
+		//printf("prije: %s\n",read_f);
 		do{
 			int type_indel;
 			char *fragment;
-			int curr_dist;
-			curr_dist = d;
 			type_indel = (rand()/(RAND_MAX+1.0)*2>=1)?1:0;
-			type_indel = 1;
-			if (type_indel == 1){pos = (int)trunc(rand()/(RAND_MAX+1.0)*(curr_dist-1));generate_gaps(pos,1);curr_dist--;}
-			/*else{
-				printf("ub\n");
-				char fragment[4];
+			//type_indel = 1;
+			if (type_indel == 1){pos = (int)trunc(rand()/(RAND_MAX+1.0)*(curr_dist-1));generate_gaps(pos,GAP_SIZE);curr_dist=curr_dist-GAP_SIZE;}
+			else{
+				//printf("ub\n");
+				char fragment[4]={0x0};
+				char keeper[1000]={0x0};
+				int pos;
 				double r;
 				char base;//pazi kad produzujes read koji je vec 500 ne valja sporo
 				r = rand()/(RAND_MAX+1.0);
 				base=(r < 0.25)?'A':((r>=0.25 && r<0.5)?'T':(r>=0.25 && r<0.75)?'C':'G');
 				fragment[0]=base;fragment[1]='\0';
-				pos = (int)trunc(rand()/(RAND_MAX+1.0)*dist);//insert(pos,fragment);
+				pos = (int)trunc(rand()/(RAND_MAX+1.0)*(curr_dist-1));//insert(pos,fragment);
+				strcat(keeper,read_f+pos);
 				read_f[pos]='\0';
 				strcat(read_f,fragment);
-				strcat(read_f,(read_f + pos + gap_size));
-				strcpy(temp,read_f+pos);
+				strcat(read_f,keeper);
+				curr_dist++;
 				
-			}*/
+			}
 			n_n++;
 		}while(n_n<n_indel);
 		//printf("lala read %s\n",read_f);
+		//printf("curr DIST %d\n",curr_dist);
 		read1=(char *)malloc((size_l+1)*sizeof(char));
 		n_errors=(int)(INDEL_FRAC*size_l);
 		read2=(char *)malloc((size_r+1)*sizeof(char));
 		strncpy(read1,read_f,size_l);read1[size_l+1]='\0';
 		int internal_counter=0;
-		for(int k=strlen(read_f)-1;internal_counter<size_r;k--){
+		for(int k=(curr_dist-1);internal_counter<size_r;k--){
 			*(read2+internal_counter)=get_complement(*(read_f + k));
 			internal_counter++;
 		}
@@ -343,7 +347,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		read2=simulate_BCER(size_r,read2);
 		fprintf(fout1,"@%s_%llu_%llu_0:0:0_0:0:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(long long)counter_a,1);
 		fprintf(fout1,"%s\n+\n%s\n",read1,q_string);
-		fprintf(fout2,"@%s_%llu_%llu_0:0:0_0:0:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(long long)counter_a,1);
+		fprintf(fout2,"@%s_%llu_%llu_0:0:0_0:0:0_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(long long)counter_a,2);
 		fprintf(fout2,"%s\n+\n%s\n",read2,q2_string);
 		//printf("read %s\n",read_f);
 		//printf("read 1 %s\n",read1);
@@ -369,13 +373,15 @@ static int simu_usage(){
 	fprintf(stderr,"**********************************************************\n");
 	fprintf(stderr,"\nUsage: ./a.out [options] <in_seq.fa> <out_read1.fq> <out_read2.fq>\n\n");
 	fprintf(stderr,"Options: -r FLOAT rate of mutations\n");
-	fprintf(stderr,"         -e FLOAT base error rate (default 0.02)\n");
-	fprintf(stderr,"         -1 INT length of first read (default 70bp)\n");
-	fprintf(stderr,"         -2 INT length of second read (default 70bp)\n");
-	fprintf(stderr,"         -N INT number of read pairs (default 100000)\n");
+	fprintf(stderr,"         -e FLOAT base error rate [default 0.02]\n");
+	fprintf(stderr,"         -1 INT length of first read [default 70bp]\n");
+	fprintf(stderr,"         -2 INT length of second read [default 70bp]\n");
+	fprintf(stderr,"         -N INT number of read pairs [default 100000]\n");
 	fprintf(stderr,"         -R FLOAT fraction of indels\n");
-	fprintf(stderr,"         -S INT seed for random generator (default -1)\n");
-	fprintf(stderr,"         -d INT outer distance between the two ends (default 500)\n");
+	fprintf(stderr,"         -S INT seed for random generator [default -1]\n");
+	fprintf(stderr,"         -d INT outer distance between the two ends [default 500]\n");
+	fprintf(stderr,"         -g INT average gap size [default 1]\n");
+	fprintf(stderr,"         -D INT standard deviation [default 50]\n");
 	fprintf(stderr,"\n**********************************************************\n");
 	return 1;
 }
@@ -389,7 +395,7 @@ int main(int argc, char *argv[])
 	char flag[10];
 	N = 1000000; dist = 500; std_dev = 50; size_l = size_r = 70;
 	flag[0]='O';flag[1]='K';flag[2]='\0'; ind = 0;
-	while ((c = getopt(argc, argv, "e:N:1:2:r:R:S:d:")) >= 0) {
+	while ((c = getopt(argc, argv, "e:N:1:2:r:R:S:d:g:D:")) >= 0) {
 		switch (c) {
 		case 'N': N = atoi(optarg); break; //broj pair end readova
 		case '1': size_l = atoi(optarg); break;//length of first read
@@ -399,6 +405,8 @@ int main(int argc, char *argv[])
 		case 'R': INDEL_FRAC = atof(optarg); break;//del.
 		case 'S': SEED = atoi(optarg);break;//seed for random number gen.
 		case 'd': dist=atoi(optarg);break;//distance between two reads
+		case 'g': GAP_SIZE=atoi(optarg);break;//average gap size
+		case 'D': std_dev=atoi(optarg);break;//standard deviation
 		}
 	}
 	if(argc - optind < 3) return simu_usage();
@@ -409,6 +417,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	if (SEED <= 0) SEED = time(0)&0x7fffffff;
+	srand48(SEED);
 	if(core(fout1,fout2,argv[optind],std_dev,size_l,size_r,N,dist)==-1){ind = -1; strcpy(flag,"FAIL");}
     printf("[%s] return value: %d %s\n",__func__, ind,flag);
 	printf ( "[%s] Total time taken: %f sec\n",__func__, ( (double)clock() - start ) / CLOCKS_PER_SEC );
