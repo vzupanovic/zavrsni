@@ -312,7 +312,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		free(read1);
 		free(read2);
 	}
-    //kseq_destroy(seq);
+    kseq_destroy(seq);
 	gzclose(fp);
 }
 
