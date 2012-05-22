@@ -311,16 +311,19 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		fprintf(fout2,"%s\n+\n%s\n",read2,q2_string);
 		free(read1);
 		free(read2);
+		free(read_f);
 	}
     kseq_destroy(seq);
 	gzclose(fp);
+	free(q_string);
+	free(q2_string);
 }
 
 static int simu_usage(){
 	fprintf(stderr,"**********************************************************\n");
 	fprintf(stderr,"Program: simulator (short read simulator)\n");
 	fprintf(stderr,"Version %s\n",PACKAGE_VERSION);
-	fprintf(stderr,"\nUsage: ./a.out [options] <in_seq.fa> <out_read1.fq> <out_read2.fq>\n\n");
+	fprintf(stderr,"\nUsage: ./simulator [options] <in_seq.fa> <out_read1.fq> <out_read2.fq>\n\n");
 	fprintf(stderr,"Options: -r FLOAT rate of mutations\n");
 	fprintf(stderr,"         -e FLOAT base error rate [default 0.02]\n");
 	fprintf(stderr,"         -1 INT length of first read [default 70bp]\n");
