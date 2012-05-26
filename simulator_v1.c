@@ -137,11 +137,11 @@ char get_complement(char base){
 	else return base;
 }
 
-char *simulate_BCER(int read_length, char *read_local){
+char *simulate_BCER(int read_length, char *read_local, int *n_errors){
 	double value;
-	int i,index,n_errors;
-	n_errors=(int)(read_length*ERR_RATE);
-	for (i=0;i<n_errors;i++){
+	int i,index;
+	*n_errors=(int)(PoissonRandomNumber((read_length*ERR_RATE)));
+	for (i=0;i<*n_errors;i++){
 		value = drand48()*(read_length - 1);
 		index = trunc((int)value);
 		*(read_local+index) = swap_base(*(read_local+index));
@@ -303,11 +303,12 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 			internal_counter++;
 		}
 		read2[internal_counter]='\0';
-		read1=simulate_BCER(size_l,read1);
-		read2=simulate_BCER(size_r,read2);
-		fprintf(fout1,"@%s_%llu_%llu_%d:%d:%d_%d:%d:%d_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(int)(size_l*ERR_RATE),n_sub[0],n_ind[0],(int)(size_r*ERR_RATE),n_sub[1],n_ind[1],(long long)counter_a,1);
+		int err_1,err_2;
+		read1=simulate_BCER(size_l,read1,&err_1);
+		read2=simulate_BCER(size_r,read2,&err_2);
+		fprintf(fout1,"@%s_%llu_%llu_%d:%d:%d_%d:%d:%d_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,err_1,n_sub[0],n_ind[0],(int)(size_r*ERR_RATE),n_sub[1],n_ind[1],(long long)counter_a,1);
 		fprintf(fout1,"%s\n+\n%s\n",read1,q_string);
-		fprintf(fout2,"@%s_%llu_%llu_%d:%d:%d_%d:%d:%d_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,(int)(size_l*ERR_RATE),n_sub[0],n_ind[0],(int)(size_r*ERR_RATE),n_sub[1],n_ind[1],(long long)counter_a,2);
+		fprintf(fout2,"@%s_%llu_%llu_%d:%d:%d_%d:%d:%d_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,err_2,n_sub[0],n_ind[0],(int)(size_r*ERR_RATE),n_sub[1],n_ind[1],(long long)counter_a,2);
 		fprintf(fout2,"%s\n+\n%s\n",read2,q2_string);
 		free(read1);
 		free(read2);
@@ -324,16 +325,16 @@ static int simu_usage(){
 	fprintf(stderr,"Program: simulator (short read simulator)\n");
 	fprintf(stderr,"Version %s\n",PACKAGE_VERSION);
 	fprintf(stderr,"\nUsage: ./simulator [options] <in_seq.fa> <out_read1.fq> <out_read2.fq>\n\n");
-	fprintf(stderr,"Options: -r FLOAT rate of mutations\n");
+	fprintf(stderr,"Options: -r FLOAT rate of mutations [default 0.001]\n");
 	fprintf(stderr,"         -e FLOAT base error rate [default 0.02]\n");
 	fprintf(stderr,"         -1 INT length of first read [default 70bp]\n");
 	fprintf(stderr,"         -2 INT length of second read [default 70bp]\n");
-	fprintf(stderr,"         -N INT number of read pairs [default 100000]\n");
-	fprintf(stderr,"         -R FLOAT fraction of indels\n");
+	fprintf(stderr,"         -N INT number of read pairs [default 1000000]\n");
+	fprintf(stderr,"         -R FLOAT fraction of indels [default 0.15]\n");
 	fprintf(stderr,"         -S INT seed for random generator [default -1]\n");
-	fprintf(stderr,"         -d INT outer distance between the two ends [default 500]\n");
+	fprintf(stderr,"         -d INT outer distance between the two ends [default 500pb]\n");
 	fprintf(stderr,"         -g INT average gap size [default 1]\n");
-	fprintf(stderr,"         -D INT standard deviation [default 50]\n");
+	fprintf(stderr,"         -D INT standard deviation [default 50pb]\n");
 	fprintf(stderr,"         -X FLOAT probability that indel is extended [default 0.3]\n");
 	fprintf(stderr,"\n**********************************************************\n");
 	return 1;
