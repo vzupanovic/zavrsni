@@ -1,0 +1,36 @@
+Introduction
+===============================================================
+Simulator is small tool for simulating sequence reads from
+a reference genome. It writes out the true read coordinates
+as well as the number of polymorphisms and sequencing errors
+in read names.
+
+Compilation
+===============================================================
+gcc -g -O6 -lz -lm -std=gnu99 simulator_v1.c -o simulator
+or use makefile, make command
+
+Simulation
+===============================================================
+./slimulator [options] <in_seq.fa> <out_read1.fq> <out_read2.fq>
+
+Options: -r FLOAT rate of mutations [default 0.001]
+         -e FLOAT base error rate [default 0.02]
+         -1 INT length of first read [default 70bp]
+         -2 INT length of second read [default 70bp]
+         -N INT number of read pairs [default 1000000]
+         -R FLOAT fraction of indels [default 0.15]
+         -S INT seed for random generator [default -1]
+         -d INT outer distance between the two ends [default 500pb]
+         -g INT average gap size [default 1]
+         -D INT standard deviation [default 50pb]
+         -X FLOAT probability that indel is extended [default 0.3]
+
+Example:
+./simulator -r 0.01 -e 0.02 -S 789 Danio_rerio.Zv9.60.dna.chromosome.9.fa iz1.txt iz2.txt
+
+Important note*: before starting compilation process you need to download 
+and install zlib.h (http://zlib.net/) and copy "genran.h" and "kseq.h" 
+into directory where simulator_v1.c is placed. You can download the test 
+sequence from http://asia.ensembl.org/index.html (you must copy the sequence
+into same directory with already mentioned files...)
