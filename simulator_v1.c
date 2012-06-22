@@ -80,7 +80,7 @@ double ran_normal() //normal distribution copied from generan.c
     }
 }
 
-const int PoissonRandomNumber(const double lambda)
+const int PoissonRandomNumber(const double lambda) //Poisson distribution
 {
   int k=0;                        
   const int max_k = 1000;           
@@ -129,7 +129,7 @@ char swap_base(char base){ //uniform distribution
 	
 } 
 
-char get_complement(char base){
+char get_complement(char base){ //get complement A-T G-C
 	if (base == 'A') return 'T';
 	else if (base == 'T') return 'A';
 	else if (base == 'G') return 'C';
@@ -137,40 +137,40 @@ char get_complement(char base){
 	else return base;
 }
 
-char *simulate_BCER(int read_length, char *read_local, int *n_errors){
+char *simulate_BCER(int read_length, char *read_local, int *n_errors){ //generates base calling errors using Poisson distribution 
 	double value;
 	int i,index;
 	*n_errors=(int)(PoissonRandomNumber((read_length*ERR_RATE)));
 	for (i=0;i<*n_errors;i++){
-		value = drand48()*(read_length - 1);
+		value = drand48()*(read_length - 1); //calculate value of index (for mutation)
 		index = trunc((int)value);
-		*(read_local+index) = swap_base(*(read_local+index));
+		*(read_local+index) = swap_base(*(read_local+index)); //change base
     }
     return read_local;
 	
 }
 
-void generate_mutations(int dist, int size_l,int size_r){
+void generate_mutations(int dist, int size_l,int size_r){ //generates substitutions
 	int i,pos,n_mut;
 	double r;
-	n_mut = dist * MUT_RATE;
+	n_mut = dist * MUT_RATE; //calculate total number of substitutions
 	for (i=0;i<n_mut;i++){
-		r=drand48();
+		r=drand48(); //uniform distribution r = [0,1>
 		pos = (int)(trunc(r * dist));
-		if(pos<=size_l){n_sub[0]++;}
+		if(pos<=size_l){n_sub[0]++;} //calculate index for mutation
 		if(pos>=(dist-size_r)){n_sub[1]++;}
 		if(*(read_f+pos)!='N')
 		    *(read_f+pos)=swap_base(*(read_f+pos));
 	}
 }
 
-void generate_gaps(int gap_pos, int gap_size){
+void generate_gaps(int gap_pos, int gap_size){ //generates gaps by adding \0 character to string
 	uint64_t i;
 	read_f[gap_pos]='\0';
 	strcat(read_f,(read_f + gap_pos + gap_size));
 }
 
-int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r, uint64_t N,int dist){
+int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r, uint64_t N,int dist){ //main function
 	mutseq_t *ret[2];
 	gzFile fp;
 	uint64_t total_len;
@@ -184,13 +184,13 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 	frequency_A=frequency_T=frequency_G=frequency_C=0.;
 	nA=nT=nG=nC=j=0;
 	max_size = size_l > size_r? size_l : size_r;
-	Q = (ERR_RATE == 0.0)? 'I' : (int)(-10.0 * log(ERR_RATE) / log(10.0) + 0.499) + 33;
-	q_string = (char *)malloc((size_l+1)*sizeof(char));
-	q2_string = (char *)malloc((size_r+1)*sizeof(char));
+	Q = (ERR_RATE == 0.0)? 'I' : (int)(-10.0 * log(ERR_RATE) / log(10.0) + 0.499) + 33; //calculates quality score
+	q_string = (char *)malloc((size_l+1)*sizeof(char)); //first quality string
+	q2_string = (char *)malloc((size_r+1)*sizeof(char)); // second quality string
 	for(int k=0;k<size_l;k++){q_string[k]=Q;};
 	for(int k=0;k<size_r;k++){q2_string[k]=Q;};
 	fprintf(stderr, "[%s] calculating the total length of the sequnce...\n",__func__);
-	while ((l = kseq_read(seq)) >= 0){
+	while ((l = kseq_read(seq)) >= 0){ //prints out basic info and calculates total length of sequence
 		printf("[%s] name: %s\n",__func__,seq->name.s);
 		if(seq->comment.l) printf("[%s] comment: %s\n",__func__,seq->comment.s);
 		total_len+=l;
@@ -205,7 +205,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 	seq = kseq_init(fp);
 	while ((l = kseq_read(seq)) >= 0){
 		if (l < dist + 3*std_dev){
-			fprintf(stderr,"[%s] ERROR sequence to short for given parametars!\n",__func__);
+			fprintf(stderr,"[%s] ERROR sequence to short for given parametars!\n",__func__); //check if sequence too short for given parameters
 			return -1;
 		}
 		for (i=0;i<l;i++){
@@ -221,7 +221,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		     nN++;
     } 
 	
-	frequency_A = (double_t)nA/l;
+	frequency_A = (double_t)nA/l; //calculates frequency of nucleotides
 	frequency_C = (double_t)nC/l;
 	frequency_G = (double_t)nG/l;
 	frequency_T = (double_t)nT/l;
@@ -229,7 +229,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 	j++;	  
     printf("[%s] frequency per sequence [%llu/%llu] A - %f | C - %f | G - %f | T - %f | *N - %f - unknown nucleotides (percentage) \n",__func__,(long long)j,(long long)n_ref,frequency_A*100,frequency_C*100,frequency_G*100,frequency_T*100,frequency_N*100);
     }
-    tot_seq = (char *)malloc((total_len+1)*sizeof(char));
+    tot_seq = (char *)malloc((total_len+1)*sizeof(char)); //allocates memory space for sequence
 	tot_seq = seq->seq.s;
 	printf("[%s] transferring sequence into memory and generating errors...\n",__func__);
 	counter_a=counter_b=0;
@@ -244,18 +244,18 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 			ran = ran * std_dev + dist;
 			d = (int)(ran + 0.5);
 			d = d > max_size ? d : max_size;
-			pos = (int)((total_len-d+1)*drand48());
+			pos = (int)((total_len-d+1)*drand48()); //calculates the position (first index) of read with normal distribution
 		}while(pos < 0 || pos >= total_len || (pos + d - 1) >= total_len);
-		read_f = (char *)malloc((d+1+(int)((INDEL_FRAC+0.5)*d))*sizeof(char));counter_a++;
+		read_f = (char *)malloc((d+1+(int)((INDEL_FRAC+0.5)*d))*sizeof(char));counter_a++; //allocates enough memory for the read
 		read_f[d+1]='\0';
 		strncpy(read_f,tot_seq+pos,d);
 		begin=pos; end=pos+d;
-		generate_mutations(d,size_l,size_r);
+		generate_mutations(d,size_l,size_r); //generates mutations
 		int n_n=0;
 		int n_indel = (int)(INDEL_FRAC * d);
 		int curr_dist=d;
 		if((n_indel >= d) || ((GAP_SIZE*n_indel)>=d)){
-			fprintf(stderr,"[%s] ERROR sequence to short for given parametars!\n",__func__);
+			fprintf(stderr,"[%s] ERROR sequence too short for given parametars!\n",__func__); //checks if sequence is too short for given parameters
 			return -1;
 		}
 		do{
@@ -263,10 +263,10 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 			char *fragment;
 			type_indel = (drand48()>=INDEL_EXT)?1:0;
 			if (type_indel == 1){
-				pos = (int)trunc(drand48()*(curr_dist-1));
+				pos = (int)trunc(drand48()*(curr_dist-1)); //calculates the position of gap
 				if (pos<size_l) n_ind[0]++;
 				if (pos >= (d-size_r)) n_ind[1]++;
-				gap_size = PoissonRandomNumber(GAP_SIZE);
+				gap_size = PoissonRandomNumber(GAP_SIZE); //generates gaps
 				if (gap_size){
 			        generate_gaps(pos,gap_size);
 				}
@@ -280,33 +280,33 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 				char base;
 				r = drand48();
 				base=(r < 0.25)?'A':((r>=0.25 && r<0.5)?'T':(r>=0.25 && r<0.75)?'C':'G');
-				fragment[0]=base;fragment[1]='\0';
-				pos = (int)trunc(drand48()*(curr_dist-1));
+				fragment[0]=base;fragment[1]='\0'; //creates new random nucleotide
+				pos = (int)trunc(drand48()*(curr_dist-1)); //calculates the position for insertion
 				if (pos<size_l) n_ind[0]++;
 				if (pos >= (d-size_r)) n_ind[1]++;
-				strcat(keeper,read_f+pos);
+				strcat(keeper,read_f+pos); 
 				read_f[pos]='\0';
 				strcat(read_f,fragment);
-				strcat(read_f,keeper);
+				strcat(read_f,keeper);//inserts nucleotides
 				curr_dist++;
 				
 			}
 			n_n++;
 		}while(n_n<n_indel);
-		read1=(char *)malloc((size_l+1)*sizeof(char));
+		read1=(char *)malloc((size_l+1)*sizeof(char)); //generates two pair end reads 
 		n_errors=(int)(INDEL_FRAC*size_l);
 		read2=(char *)malloc((size_r+1)*sizeof(char));
 		strncpy(read1,read_f,size_l);read1[size_l+1]='\0';
 		int internal_counter=0;
 		for(int k=(curr_dist-1);internal_counter<size_r;k--){
-			*(read2+internal_counter)=get_complement(*(read_f + k));
+			*(read2+internal_counter)=get_complement(*(read_f + k)); //makes complement of first fragment
 			internal_counter++;
 		}
 		read2[internal_counter]='\0';
 		int err_1,err_2;
-		read1=simulate_BCER(size_l,read1,&err_1);
+		read1=simulate_BCER(size_l,read1,&err_1); //generates base calling errors
 		read2=simulate_BCER(size_r,read2,&err_2);
-		fprintf(fout1,"@%s_%llu_%llu_%d:%d:%d_%d:%d:%d_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,err_1,n_sub[0],n_ind[0],(int)(size_r*ERR_RATE),n_sub[1],n_ind[1],(long long)counter_a,1);
+		fprintf(fout1,"@%s_%llu_%llu_%d:%d:%d_%d:%d:%d_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,err_1,n_sub[0],n_ind[0],(int)(size_r*ERR_RATE),n_sub[1],n_ind[1],(long long)counter_a,1); //prints results into the file
 		fprintf(fout1,"%s\n+\n%s\n",read1,q_string);
 		fprintf(fout2,"@%s_%llu_%llu_%d:%d:%d_%d:%d:%d_%llx/%d\n",seq->name.s,(long long)begin,(long long)end,err_2,n_sub[0],n_ind[0],(int)(size_r*ERR_RATE),n_sub[1],n_ind[1],(long long)counter_a,2);
 		fprintf(fout2,"%s\n+\n%s\n",read2,q2_string);
@@ -364,14 +364,14 @@ int main(int argc, char *argv[])
 		case 'X': INDEL_EXT=atof(optarg);break;//probability that indel is extended
 		}
 	}
-	if(argc - optind < 3) return simu_usage();
+	if(argc - optind < 3) return simu_usage(); //checks the number of arguments
 	fout1 = fopen(argv[optind+1], "w");
 	fout2 = fopen(argv[optind+2], "w");
 	if (!fout1 || !fout2) {
 		fprintf(stderr, "[%s] file open error\n",__func__);
 		return 1;
 	}
-	if (SEED <= 0) SEED = time(0)&0x7fffffff;
+	if (SEED <= 0) SEED = time(0)&0x7fffffff; //sets up seed
 	srand48(SEED);
 	fprintf(stderr,"[%s] simulator seed = %d\n",__func__,SEED);
 	if(core(fout1,fout2,argv[optind],std_dev,size_l,size_r,N,dist)==-1){ind = -1; strcpy(flag,"FAIL");}
