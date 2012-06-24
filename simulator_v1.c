@@ -110,7 +110,7 @@ const int poisson_random_number(const double lambda) //Poisson distribution
 
 
 /* swap_base() - changes the value of the base given as an input parameter
- * value of new random base is calculated with uniform distribution 
+ * value of the new random base is calculated with uniform distribution 
  * (function drand48()) the new value of the base is returned or
  * the same base (if value of input parameter was N - unkown nucleotide)
  * */
@@ -119,7 +119,7 @@ const int poisson_random_number(const double lambda) //Poisson distribution
 char swap_base(char base){
 	char new_base;
 	double value;
-	value = drand48()*MAX; //value is number between 0 and 4
+	value = drand48()*MAX; //value is a number between 0 and 4
 	switch (base){
 		case 'A':
 		     if(value >= 1) return 'C';
@@ -187,8 +187,8 @@ char *simulate_BCER(int read_length, char *read_local, int *n_errors){
 
 /*generate mutations() - generates mutations on input string, input parameters are:
  * dist - distance between two reads
- * size_l - size of first read
- * size_r - size of second read
+ * size_l - size of the first read
+ * size_r - size of the second read
  * function makes mutations on orginial string, so nothing is returned
  * */
   
@@ -196,7 +196,7 @@ char *simulate_BCER(int read_length, char *read_local, int *n_errors){
 void generate_mutations(int dist, int size_l,int size_r){
 	int i,pos,n_mut;
 	double r;
-	n_mut = dist * MUT_RATE; //calculate total number of substitutions
+	n_mut = dist * MUT_RATE; //calculate the total number of substitutions
 	for (i=0;i<n_mut;i++){
 		r=drand48(); //uniform distribution r = [0,1>
 		pos = (int)(trunc(r * dist));
@@ -218,24 +218,24 @@ void generate_mutations(int dist, int size_l,int size_r){
 void generate_gaps(int gap_pos, int gap_size){
 	uint64_t i;
 	read_f[gap_pos]='\0';
-	strcat(read_f,(read_f + gap_pos + gap_size)); //overwrites gap_size nucleotides beginning from gap_pos 
+	strcat(read_f,(read_f + gap_pos + gap_size)); //overwrites the gap_size nucleotides beginning from the gap_pos 
 }
 
 
 /*core() - main function, calls every other function, if
  * everything was fine during the simulation process returns 0 otherwise
  * -1 , input parameters are:
- * fout1 - file in which first fastq result of simulation for the first read will be stored
- * fout2 - file in which second fastq result of simulation for the second read will be stored
+ * fout1 - file in which the fastq result of simulation for the first read will be stored
+ * fout2 - file in which the fastq result of simulation for the second read will be stored
  * std_dev - standard deviation for fragments generation
- * size_l - size of first read
- * size_r - size of second read
+ * size_l - size of the first read
+ * size_r - size of the second read
  * N - total number of reads
  * dist - distance between two reads
  * */
 
 
-int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r, uint64_t N,int dist){ //main function
+int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r, uint64_t N,int dist){ //most important function
 	mutseq_t *ret[2];
 	gzFile fp;
 	uint64_t total_len;
@@ -275,9 +275,10 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 	fp = gzopen(argv, "r");
 	seq = kseq_init(fp);
 	
+	
 	while ((l = kseq_read(seq)) >= 0){
 		if (l < dist + 3*std_dev){
-			fprintf(stderr,"[%s] ERROR sequence to short for given parametars!\n",__func__); //check if sequence too short for given parameters
+			fprintf(stderr,"[%s] ERROR sequence to short for given parametars!\n",__func__); //check if sequence is too short for given parameters
 			return -1;
 		}
 		for (i=0;i<l;i++){ //calculate the total number of A,T,G,C
@@ -292,16 +293,16 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		else 
 		     nN++;
     } 
-	
 	frequency_A = (double_t)nA/l; //calculates frequency of nucleotides
 	frequency_C = (double_t)nC/l;
 	frequency_G = (double_t)nG/l;
 	frequency_T = (double_t)nT/l;
 	frequency_N = (double_t)nN/l;
-	
 	j++;	  
     printf("[%s] frequency per sequence [%llu/%llu] A - %f | C - %f | G - %f | T - %f | *N - %f - unknown nucleotides (percentage) \n",__func__,(long long)j,(long long)n_ref,frequency_A*100,frequency_C*100,frequency_G*100,frequency_T*100,frequency_N*100);
     }
+    
+    
     tot_seq = (char *)malloc((total_len+1)*sizeof(char)); //allocates enough memory space for sequence
 	tot_seq = seq->seq.s;
 	printf("[%s] transferring sequence into memory and generating errors...\n",__func__);
@@ -318,13 +319,13 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 			ran = ran * std_dev + dist;
 			d = (int)(ran + 0.5); //calculates size of fragment
 			d = d > max_size ? d : max_size; //avoid boundary failure
-			pos = (int)((total_len-d+1)*drand48()); //calculates the position (first index) of fragment with normal distribution
+			pos = (int)((total_len-d+1)*drand48()); //calculates the position (first index) of the fragment with normal distribution
 		}while(pos < 0 || pos >= total_len || (pos + d - 1) >= total_len);
 		
 		read_f = (char *)malloc((d+1+(int)((INDEL_FRAC+0.5)*d))*sizeof(char));counter_a++; //allocates enough memory for the fragment
 		read_f[d+1]='\0'; //adds \0 to the end of the fragment
 		strncpy(read_f,tot_seq+pos,d); //copies part of the sequence into fragment
-		begin=pos; end=pos+d; //store beginning
+		begin=pos; end=pos+d; //store the beginning and the ending of the fragment
 		generate_mutations(d,size_l,size_r); //generates mutations
 		int n_n=0;
 		int n_indel = (int)(INDEL_FRAC * d); //total number of indels
@@ -354,8 +355,8 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 				double r;
 				char base;
 				r = drand48();
-				base=(r < 0.25)?'A':((r>=0.25 && r<0.5)?'T':(r>=0.25 && r<0.75)?'C':'G'); //generates new random base
-				fragment[0]=base;fragment[1]='\0'; //creates new random nucleotide
+				base=(r < 0.25)?'A':((r>=0.25 && r<0.5)?'T':(r>=0.25 && r<0.75)?'C':'G'); //generates new random nucleotide
+				fragment[0]=base;fragment[1]='\0'; //adds nucleotide to fragment
 				pos = (int)trunc(drand48()*(curr_dist-1)); //calculates the position for insertion
 				if (pos<size_l) n_ind[0]++;
 				if (pos >= (d-size_r)) n_ind[1]++;
@@ -433,8 +434,8 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "e:N:1:2:r:R:S:d:g:D:X:")) >= 0) {
 		switch (c) {
 		case 'N': N = atoi(optarg); break; //number of reads
-		case '1': size_l = atoi(optarg); break;//length of first read
-		case '2': size_r = atoi(optarg); break; //length of second read
+		case '1': size_l = atoi(optarg); break;//length of the first read
+		case '2': size_r = atoi(optarg); break; //length of the second read
 		case 'e': ERR_RATE = atof(optarg); break; //bcer
 		case 'r': MUT_RATE = atof(optarg); break; //rate of mutations
 		case 'R': INDEL_FRAC = atof(optarg); break;//del.
