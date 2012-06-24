@@ -211,7 +211,7 @@ void generate_mutations(int dist, int size_l,int size_r){
 /*generate_gaps() - generates gaps on fragment by adding \0 character to it
  * input parameters are:
  * gap_pos - position of the gap
- * gap size - size of gap (number of nucleotides that will be owerwritten)
+ * gap size - size of gap (number of nucleotides that will be overwritten)
  * */
 
 
