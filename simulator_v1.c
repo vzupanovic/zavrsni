@@ -303,7 +303,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
     }
     
     
-    tot_seq = (char *)malloc((total_len+1)*sizeof(char)); //allocates enough memory space for sequence
+    //tot_seq = (char *)malloc((total_len+1)*sizeof(char)); //allocates enough memory space for sequence
 	tot_seq = seq->seq.s;
 	printf("[%s] transferring sequence into memory and generating errors...\n",__func__);
 	counter_a=counter_b=0; //set counters to zero
@@ -322,7 +322,8 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 			pos = (int)((total_len-d+1)*drand48()); //calculates the position (first index) of the fragment with normal distribution
 		}while(pos < 0 || pos >= total_len || (pos + d - 1) >= total_len);
 		
-		read_f = (char *)malloc((d+1+(int)((INDEL_FRAC+0.5)*d))*sizeof(char));counter_a++; //allocates enough memory for the fragment
+		read_f = (char *)malloc((d+1+(int)((INDEL_EXT+0.5)*d))*sizeof(char));counter_a++; //allocates enough memory for the fragment
+		//read_f = (char *)malloc(2000*sizeof(char));
 		read_f[d+1]='\0'; //adds \0 to the end of the fragment
 		strncpy(read_f,tot_seq+pos,d); //copies part of the sequence into fragment
 		begin=pos; end=pos+d; //store the beginning and the ending of the fragment
@@ -407,8 +408,8 @@ static int simu_usage(){
 	fprintf(stderr,"\nUsage: ./simulator [options] <in_seq.fa> <out_read1.fq> <out_read2.fq>\n\n");
 	fprintf(stderr,"Options: -r FLOAT rate of mutations [default 0.001]\n");
 	fprintf(stderr,"         -e FLOAT base error rate [default 0.02]\n");
-	fprintf(stderr,"         -1 INT length of first read [default 70bp]\n");
-	fprintf(stderr,"         -2 INT length of second read [default 70bp]\n");
+	fprintf(stderr,"         -1 INT length of the first read [default 70bp]\n");
+	fprintf(stderr,"         -2 INT length of the second read [default 70bp]\n");
 	fprintf(stderr,"         -N INT number of read pairs [default 1000000]\n");
 	fprintf(stderr,"         -R FLOAT fraction of indels [default 0.15]\n");
 	fprintf(stderr,"         -S INT seed for random generator [default -1]\n");
