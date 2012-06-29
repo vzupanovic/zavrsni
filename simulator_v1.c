@@ -373,7 +373,7 @@ int core(FILE *fout1,FILE *fout2,char *argv, int std_dev, int size_l, int size_r
 		read1=(char *)malloc((size_l+1)*sizeof(char)); //generates two pair end reads 
 		n_errors=(int)(INDEL_FRAC*size_l); //calculates the total number of base calling errors
 		read2=(char *)malloc((size_r+1)*sizeof(char));
-		strncpy(read1,read_f,size_l);read1[size_l+1]='\0';
+		strncpy(read1,read_f,size_l+1);read1[size_l+1]='\0';
 		int internal_counter=0;
 		for(int k=(curr_dist-1);internal_counter<size_r;k--){
 			*(read2+internal_counter)=get_complement(*(read_f + k)); //makes complement of first fread
